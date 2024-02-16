@@ -11,8 +11,9 @@ import java.util.Comparator;
 public class Main {
 
 
-
-    private static final String link = "https://vod-cache.kaltura.nordu.net/hls/p/322/sp/32200/serveFlavor/entryId/0_zs02ezm0/v/12/ev/4/flavorId/0_5d17h95m/name/a.mp4/seg-";
+    private static String link = "https://vod-cache.kaltura.nordu.net/hls/p/322/sp/32200/serveFlavor/entryId/0_wxxap85v/v/2/ev/2/flavorId/0_vssz0qt1/name/a.mp4/seg-1-sdsdsdsds";
+ //   private static final String link = "https://vod-cache.kaltura.nordu.net/hls/p/322/sp/32200/serveFlavor/entryId/0_qkkoglf8/v/2/ev/2/flavorId/0_tip1bup6/name/a.mp4/seg-";
+ //   private static final String link = "https://vod-cache.kaltura.nordu.net/hls/p/322/sp/32200/serveFlavor/entryId/0_x1rt6pla/v/2/ev/2/flavorId/0_8kkqflz6/name/a.mp4/seg-";
     private static String fileName = "Test";
 
     /**
@@ -28,16 +29,32 @@ public class Main {
     private static final String destinationFolder = System.getProperty("user.home") + File.separator + "Desktop" + File.separator + "CanvasTranscriber";
 
 
-
     public static void main(String[] args) {
 
         fileName = fileName.replace(" ", "-");
         fileName = fileName.replace("\n", "");
         fileName = fileName.replaceAll("[^abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-]", "");
 
+        File folder = new File(destinationFolder);
+        if (!folder.exists()) {
+            folder.mkdir();
+        }
+        folder = new File(destinationFolder + "\\temp");
+        if (!folder.exists()) {
+            folder.mkdir();
+        }
+
+        folder = new File(destinationFolder + "\\outputs");
+        if (!folder.exists()) {
+            folder.mkdir();
+        }
+
+
+        //remove anything that might be in the "link" string that comes after "seg-"
+        String[] linkParts = link.split("seg-");
+        link = linkParts[0] + "seg-";
 
         try {
-
 
             for (int i = 1; i < maxSegments; i++) {
                 String url = link + i + "-v1-a1.ts";
@@ -50,13 +67,12 @@ public class Main {
             e.printStackTrace();
         }
     }
+
     public static boolean downloadTSFile(String url, String destinationFolder, String fileName) throws IOException {
 
         destinationFolder += "\\temp";
 
 
-        // Extract the file name from the URL
-        //String fileName = url.substring(url.lastIndexOf('/') + 1);
 
         // Combine the destination folder path with the file name
         Path destinationPath = Paths.get(destinationFolder, fileName);
@@ -184,13 +200,54 @@ public class Main {
             reader.close();
 
             System.out.println("MP3 file successfully created and saved as " + mp3FilePath);
+
+
+            //If the mp3 file is bigger than 26418162 bytes, split it into multiple files
+            File mp3File = new File(mp3FilePath);
+            if (mp3File.length() > 26418162) {
+            }
+            splitMp3(mp3FilePath);
+
+
+
             Whisper.transcribeAndSaveToFile(Config.openAiAPIKey, mp3FilePath);
 
         } catch (Exception e) {
             System.err.println("Error converting MP4 to MP3: " + e.getMessage());
             e.printStackTrace();
         }
+
+
     }
+
+    private static void splitMp3(String filePath){
+        try {
+            File mp3File = new File(filePath);
+            if (!mp3File.exists() || !mp3File.isFile() || !filePath.toLowerCase().endsWith(".mp3")) {
+                System.err.println("Error: " + filePath + " is not a valid MP3 file path.");
+                return;
+            }
+            String ffmpegPath = "C:\\ffmpeg\\bin\\ffmpeg.exe";
+            String outputFolder = mp3File.getParent() + File.separator + "split";
+            File folder = new File(outputFolder);
+            if (!folder.exists()) {
+                folder.mkdir();
+            }
+            String ffmpegCommand = ffmpegPath + " -i \"" + filePath + "\" -f segment -segment_time 1800 -c copy \"" + outputFolder + File.separator + "output%03d.mp3\"";
+            Process process = Runtime.getRuntime().exec(ffmpegCommand);
+            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getErrorStream()));
+            String line;
+            while ((line = reader.readLine()) != null) {
+                System.out.println(line);
+            }
+            reader.close();
+            System.out.println("MP3 file successfully split into 1800 second segments and saved in " + outputFolder);
+        } catch (Exception e) {
+            System.err.println("Error splitting MP3: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
 
 }
 
