@@ -18,7 +18,7 @@ public class Whisper {
         transcribeAndSaveToFile(Config.openAiAPIKey, "C:\\Users\\esst9\\Desktop\\Downloads\\test.mp3");
     }
 
-    public static void transcribeAndSaveToFile(String apiKey, String audioFilePath) throws IOException {
+    public static boolean transcribeAndSaveToFile(String apiKey, String audioFilePath) throws IOException {
         String transcription = transcribeAudio(apiKey, audioFilePath);
 
         File audioFile = new File(audioFilePath);
@@ -26,6 +26,7 @@ public class Whisper {
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(outputFilePath))) {
             writer.write(transcription);
         }
+        return true;
     }
     public static String transcribeAudio(String apiKey, String audioFilePath) throws IOException {
         OkHttpClient client = new OkHttpClient.Builder()

@@ -1,7 +1,9 @@
 package me.kmaxi;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.Scanner;
 
 import static me.kmaxi.CanvasLogic.downloadTSFile;
 import static me.kmaxi.FFMPEGLogic.*;
@@ -9,7 +11,7 @@ import static me.kmaxi.FFMPEGLogic.*;
 public class Main {
 
 
-    private static String link = "https://vod-cache.kaltura.nordu.net/hls/p/322/sp/32200/serveFlavor/entryId/0_wxxap85v/v/2/ev/2/flavorId/0_vssz0qt1/name/a.mp4/seg-1-sdsdsdsds";
+    private static String link = "https://vod-cache.kaltura.nordu.net/hls/p/322/sp/32200/serveFlavor/entryId/0_bovg59dj/v/2/ev/2/flavorId/0_l7256o16/name/a.mp4/seg-1-v1-a1.ts";
     //   private static final String link = "https://vod-cache.kaltura.nordu.net/hls/p/322/sp/32200/serveFlavor/entryId/0_qkkoglf8/v/2/ev/2/flavorId/0_tip1bup6/name/a.mp4/seg-";
     //   private static final String link = "https://vod-cache.kaltura.nordu.net/hls/p/322/sp/32200/serveFlavor/entryId/0_x1rt6pla/v/2/ev/2/flavorId/0_8kkqflz6/name/a.mp4/seg-";
     private static String fileName = "Test";
@@ -27,7 +29,8 @@ public class Main {
     private static final String destinationFolder = System.getProperty("user.home") + File.separator + "Desktop" + File.separator + "CanvasTranscriber";
 
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
+
 
         fileName = fileName.replace(" ", "-");
         fileName = fileName.replace("\n", "");
@@ -66,13 +69,59 @@ public class Main {
 
             splitMp3(mp3FilePath, true);
 
-
             //  Whisper.transcribeAndSaveToFile(Config.openAiAPIKey, mp3FilePath);
+            TranscribeSplitFiles();
 
 
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    private static void TranscribeSplitFiles() throws IOException {
+        File finalFile = new File(destinationFolder + "\\final\\" + fileName + ".txt");
+        if (!finalFile.exists()) {
+            finalFile.createNewFile();
+        }
+
+        //For each file in the split folder, transcribe it and save it to a file
+        File[] files = new File(destinationFolder + "\\outputs\\split").listFiles();
+        System.out.println("Transcribing " + files.length + " files");
+        if (files != null) {
+            for (File file : files) {
+                if (file.isFile()) {
+                    String filePath = file.getAbsolutePath();
+                    if (Whisper.transcribeAndSaveToFile(Config.openAiAPIKey, filePath)) {
+
+                        //Deltete the mp3 audio file
+                        if (!file.delete()) {
+                            System.err.println("Error deleting file: " + file.getAbsolutePath());
+                        }
+
+                        //Read the .txt file that was created from the transcribeAndSaveToFile method
+                        File transcriptFile = new File(filePath + ".txt");
+                        //Add the transcribed .txt files to the final folder with a file name that matches the variable fileName. The  Whisper.transcribeAndSaveToFile creates a .txt file with the same name as the audio file in the same directory
+                        // This file will contain the combination of all .txt files that are created
+                        StringBuilder transcript = new StringBuilder();
+                        try (Scanner scanner = new Scanner(transcriptFile)) {
+                            while (scanner.hasNextLine()) {
+                                transcript.append(scanner.nextLine()).append("\n");
+                            }
+                        } catch (FileNotFoundException e) {
+                            System.err.println("Error reading file: " + transcriptFile.getAbsolutePath());
+                        }
+
+                        //Add the Transcript to the final file in the final using a buffered reader
+                        try (java.io.BufferedWriter writer = new java.io.BufferedWriter(new java.io.FileWriter(finalFile, true))) {
+                            writer.write(transcript.toString());
+                        } catch (IOException e) {
+                            System.err.println("Error writing to file: " + finalFile.getAbsolutePath());
+                        }
+                    }
+                }
+            }
+        }
+
     }
 
     private static void CleanDir(String dir) {
@@ -84,7 +133,7 @@ public class Main {
             if (files != null) {
                 for (File file : files) {
                     //Only delete files and not directories
-                    if (file.isFile()){
+                    if (file.isFile()) {
                         file.delete();
                         System.out.println("Deleting: " + file.getAbsolutePath());
 
